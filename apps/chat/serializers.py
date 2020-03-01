@@ -1,33 +1,44 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
 from .models import Message, Thread
-
-
-# User Serializer
-class UserSerializer(serializers.ModelSerializer):
-    """For Serializing User"""
-    password = serializers.CharField(write_only=True)
-    class Meta:
-        model = User
-        fields = ['username', 'password']
-
-
-# Message Serializer
-class MessageSerializer(serializers.ModelSerializer):
-    """For Serializing Message"""
-    sender = serializers.SlugRelatedField(many=False, slug_field='username', queryset=User.objects.all())
-    thread = serializers.SlugRelatedField(many=False, slug_field='thread', queryset=Thread.objects.all())
-
-    class Meta:
-        model = Message
-        fields = '__all__'
+from django.core.exceptions import ValidationError
 
 
 # Thread Serializer
-class ThreadSerializer(serializers.ModelSerializer):
+class ThreadCreateSerializer(serializers.ModelSerializer):
     """For Serializing Threads"""
-    participant = serializers.SlugRelatedField(many=True, slug_field='username', queryset=User.objects.all())
+
+    participants = serializers.PrimaryKeyRelatedField(many=True, queryset=User.objects.all())
+    created = serializers.DateTimeField(required=False)
+    updated = serializers.DateTimeField(required=False)
+
+    def validate(self, validated_data):
+        if len(validated_data.get('participants')) != 2:
+            raise ValidationError(message='There can be only two participants')
+        return validated_data
+
+    def create(self, validated_data):
+        participants = validated_data.get('participants')
+        thread = Thread.objects.create()
+        thread.participants.set(participants)
+        thread.save()
+
+        return thread
 
     class Meta:
         model = Thread
         fields = '__all__'
+
+
+class ThreadDetailSerializer(serializers.ModelSerializer):
+    """For Serializing Threads"""
+
+    participants = serializers.PrimaryKeyRelatedField(many=True, queryset=User.objects.all())
+    created = serializers.DateTimeField()
+    updated = serializers.DateTimeField()
+
+    class Meta:
+        model = Thread
+        fields = '__all__'
+
+
