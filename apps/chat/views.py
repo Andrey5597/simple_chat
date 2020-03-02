@@ -1,6 +1,6 @@
 
 from .models import Message, Thread, User
-from apps.chat.serializers import ThreadCreateSerializer, ThreadDetailSerializer
+from apps.chat.serializers import ThreadCreateSerializer, ThreadDetailSerializer, ThreadListSerializer
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -31,7 +31,7 @@ class ThreadDetailsView(APIView):
 
 class ThreadsListView(generics.ListAPIView):
 
-    serializer_class = ThreadDetailSerializer
+    serializer_class = ThreadListSerializer
 
     def get_queryset(self):
         participant = self.kwargs['participant_id']

@@ -41,5 +41,22 @@ class ThreadDetailSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class ThreadListSerializer(serializers.ModelSerializer):
+    """For Serializing Threads"""
+    name = serializers.CharField(max_length=50)
+    participants = serializers.PrimaryKeyRelatedField(many=True, queryset=User.objects.all())
+    message = serializers.SerializerMethodField()
+
+    def get_message(self, obj):
+        message = obj.message.last()
+        if message:
+            return message.text
+
+
+    class Meta:
+        model = Thread
+        fields = 'participants', 'name', 'created', 'updated', 'message'
+
+
 
 
