@@ -1,6 +1,10 @@
 
 from .models import Message, Thread, User
-from apps.chat.serializers import ThreadCreateSerializer, ThreadDetailSerializer, ThreadListSerializer
+from apps.chat.serializers import (ThreadCreateSerializer,
+                                   ThreadDetailSerializer,
+                                   ThreadListSerializer,
+                                   MessageCreateSerializer,
+                                   MessageDetailSerializer)
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -36,3 +40,21 @@ class ThreadsListView(generics.ListAPIView):
     def get_queryset(self):
         participant = self.kwargs['participant_id']
         return Thread.objects.filter(participants__id=participant)
+
+
+class MessageDetailView(APIView):
+
+    def post(self, request):
+        serializer = MessageCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(status=status.HTTP_201_CREATED)
+
+
+class MessageListView(generics.ListAPIView):
+    serializer_class = MessageDetailSerializer
+
+    def get_queryset(self):
+        thread = self.kwargs['thread_id']
+        print(thread)
+        return Message.objects.filter(thread=thread)

@@ -58,5 +58,31 @@ class ThreadListSerializer(serializers.ModelSerializer):
         fields = 'participants', 'name', 'created', 'updated', 'message'
 
 
+class MessageCreateSerializer(serializers.ModelSerializer):
+    """For Serializing Messages"""
+
+    sender = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    text = serializers.CharField(max_length=500)
+    thread = serializers.PrimaryKeyRelatedField(queryset=Thread.objects.all())
+    is_read = serializers.BooleanField(default=False)
+
+    def create(self, validated_data):
+        message = Message.objects.create(**validated_data)
+        return message
+
+    class Meta:
+        model = Message
+        fields = '__all__'
 
 
+class MessageDetailSerializer(serializers.ModelSerializer):
+    """For Serializing Messages"""
+
+    sender = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    text = serializers.CharField(max_length=500)
+    thread = serializers.PrimaryKeyRelatedField(queryset=Thread.objects.all())
+    is_read = serializers.BooleanField(default=False)
+
+    class Meta:
+        model = Message
+        fields = '__all__'
