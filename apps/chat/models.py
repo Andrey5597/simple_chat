@@ -6,11 +6,12 @@ from django.db.models.signals import m2m_changed
 
 class Thread(models.Model):
     participants = models.ManyToManyField(User, db_table='User', related_name='users', blank=True)
-    created = models.DateTimeField(verbose_name='created', auto_now=True, blank=True)
-    updated = models.DateTimeField(verbose_name='updated', blank=True, null=True)
+    created = models.DateTimeField(verbose_name='created', auto_now_add=True)
+    updated = models.DateTimeField(verbose_name='updated', auto_now=True)
+    name = models.CharField(max_length=50, verbose_name='Name')
 
     def __str__(self):
-        return f'Thread from {self.created}'
+        return self.name
 
     class Meta:
         ordering = ('created',)
