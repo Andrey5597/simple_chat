@@ -1,12 +1,27 @@
 from django.urls import path
-from .views import ThreadDetailsView, ThreadsListView, MessageDetailView, MessageListView
+from .views import (ThreadDetailView,
+                    ThreadListView,
+                    MessageDetailView,
+                    ThreadMessageListView,
+                    MessageReadView,
+                    UnreadMessageView)
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+)
+
 
 urlpatterns = [
-    path('threads/', ThreadDetailsView.as_view(), name='Threads'),
-    path('threads/<int:thread_id>', ThreadDetailsView.as_view(), name='Threads'),
-    path('threads/participant/<int:participant_id>', ThreadsListView.as_view()
-         , name="Participant's_threads "),
-    path('thread/messages/', MessageDetailView.as_view(), name='Messages'),
-    path('thread/messages/<int:thread_id>', MessageListView.as_view(), name="Thread's messages")
+    # methods POST(custom) GET, supports query params ('user_id), in this case queryset will be filtered by users
+    path('threads/', ThreadListView.as_view(), name='Threads'),
+    # method POST(custom), if
+    path('threads/<int:thread_id>/', ThreadDetailView.as_view(), name='Threads'),                # method  DELETE
+    path('threads/<int:thread_id>/messages/', ThreadMessageListView.as_view(), name='Threads'),
+    path('messages/<int:message_id>/', MessageDetailView.as_view(), name="Thread's messages"),
+    path('messages/read/', MessageReadView.as_view(), name="Thread's messages"),
+    path('messages/unread', UnreadMessageView.as_view(), name='Number of unread messages'),
 
+
+    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 ]
