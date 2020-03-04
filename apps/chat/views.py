@@ -1,23 +1,20 @@
 
-from .models import Message, Thread, User
-from apps.chat.serializers import (ThreadSerializer,
-                                   # ThreadDetailSerializer,
-                                   ThreadListSerializer,
-                                   MessageCreateSerializer,
-                                   MessageDetailSerializer,
-                                   MessageCountSerializer
-                                   )
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework import generics
-from django.shortcuts import get_object_or_404
-from django.db.models import Q
+from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework.pagination import LimitOffsetPagination
+
+from apps.chat.serializers import (MessageCountSerializer,
+                                   MessageCreateSerializer,
+                                   MessageDetailSerializer, ThreadSerializer)
+
+from .models import Message, Thread
 
 
 class ThreadListView(generics.ListCreateAPIView):
     serializer_class = ThreadSerializer
+    pagination_class = LimitOffsetPagination
 
     def get_queryset(self):
         queryset = Thread.objects.all()
@@ -27,12 +24,11 @@ class ThreadListView(generics.ListCreateAPIView):
 
     @staticmethod
     def get_thread(participants):
-        try:
-            return Thread.objects.filter(
-                participants__in=participants
-            )
-        except Thread.DoesNotExist:
-            return None
+        threads = Thread.objects.filter(participants=participants[0]
+                                        ).filter(participants=participants[1])
+        if threads.exists():
+            return threads.last()
+        return None
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -49,10 +45,12 @@ class ThreadDetailView(generics.RetrieveDestroyAPIView):
     lookup_url_kwarg = 'thread_id'
     serializer_class = ThreadSerializer
     queryset = Thread.objects.all()
+    pagination_class = LimitOffsetPagination
 
 
 class ThreadMessageListView(generics.ListCreateAPIView):
     serializer_class = MessageDetailSerializer
+    pagination_class = LimitOffsetPagination
 
     def get_queryset(self):
         return Message.objects.filter(thread=self.kwargs['thread_id'])
@@ -64,7 +62,7 @@ class MessageDetailView(generics.CreateAPIView):
 
 class MessageListView(generics.ListAPIView):
     serializer_class = MessageDetailSerializer
-
+    
     def get_queryset(self):
         return Message.objects.filter(thread_id=self.kwargs['thread_id'])
 
@@ -79,15 +77,12 @@ class MessageReadView(APIView):
         return Response({'messages': 'Invalid format.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
-class UnreadMessageView(generics.RetrieveAPIView):
-    permission_classes = (IsAuthenticated, )
-    queryset = Thread.objects.all()
-    serializer_class = MessageCountSerializer
+class UnreadMessageView(APIView):
 
+    def get(self, request):
+        user_threads_ids = self.request.user.threads.all().values_list('id', flat=True)
+        unread_messages = Message.objects.filter(thread_id__in=user_threads_ids,
+                                                 is_read=False).exclude(sender=self.request.user)
+        output_serializer = MessageCountSerializer(unread_messages)
 
-
-
-
-
-
-
+        return Response(output_serializer.data, status=status.HTTP_200_OK)

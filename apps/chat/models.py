@@ -1,11 +1,9 @@
-from django.db import models
 from django.contrib.auth.models import User
-from django.core.exceptions import ValidationError
-from django.db.models.signals import m2m_changed
+from django.db import models
 
 
 class Thread(models.Model):
-    participants = models.ManyToManyField(User, db_table='User', related_name='users', blank=True)
+    participants = models.ManyToManyField(User, related_name='threads', blank=True)
     created = models.DateTimeField(verbose_name='created', auto_now_add=True)
     updated = models.DateTimeField(verbose_name='updated', auto_now=True)
     name = models.CharField(max_length=50, verbose_name='Name')
@@ -29,6 +27,4 @@ class Message(models.Model):
 
     class Meta:
         ordering = ('created',)
-
-# Create your models here.
 

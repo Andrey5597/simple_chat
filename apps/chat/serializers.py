@@ -1,7 +1,8 @@
 from django.contrib.auth.models import User
-from rest_framework import serializers
-from .models import Message, Thread
 from django.core.exceptions import ValidationError
+from rest_framework import serializers
+
+from .models import Message, Thread
 
 
 # Thread Serializer
@@ -24,8 +25,7 @@ class ThreadSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         participants = validated_data.pop('participants')
         thread = Thread.objects.create(**validated_data)
-        thread.participants.set(participants)
-        thread.save()
+        thread.participants.add(*participants)
 
         return thread
 
@@ -74,18 +74,9 @@ class MessageDetailSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class MessageCountSerializer(serializers.ModelSerializer):
+class MessageCountSerializer(serializers.Serializer):
 
     number_of_unread_messages = serializers.SerializerMethodField()
 
     def get_number_of_unread_messages(self, obj):
-        queryset_1 = obj.objects.fitter(participants=self.request.user)
-        number_of_unread_messages = Message.objects.filter(pa)
-
-
-
-
-    class Meta:
-        model = Message
-        fields = ('number_of_unread_messages', )
-
+        return obj.count()
