@@ -1,3 +1,5 @@
+from typing import List, Optional, OrderedDict
+
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from rest_framework import serializers
@@ -5,78 +7,52 @@ from rest_framework import serializers
 from .models import Message, Thread
 
 
-# Thread Serializer
 class ThreadSerializer(serializers.ModelSerializer):
-    """For Serializing Threads"""
-
+    """Serializer for creating and displaying Threads."""
     participants = serializers.PrimaryKeyRelatedField(many=True, queryset=User.objects.all())
     last_message = serializers.SerializerMethodField()
 
-    def validate_participants(self, value):
-        if len(value) != 2:
+    class Meta:
+        model = Thread
+        fields = (
+            'id',
+            'participants',
+            'name',
+            'created',
+            'updated',
+            'last_message',
+        )
+
+    def validate_participants(self, objs: List[User]) -> List[User]:
+        if len(objs) != 2:
             raise ValidationError(message='There can be only two participants')
-        return value
+        return objs
 
-    def get_last_message(self, obj):
+    def get_last_message(self, obj: Thread) -> Optional[str]:
         message = obj.messages.last()
-        if message:
-            return message.text
+        return message.text if message else None
 
-    def create(self, validated_data):
+    def create(self, validated_data: dict) -> Thread:
         participants = validated_data.pop('participants')
-        thread = Thread.objects.create(**validated_data)
+        thread = super().create(validated_data)
         thread.participants.add(*participants)
-
         return thread
 
-    class Meta:
-        model = Thread
-        fields = ('participants', 'name', 'created', 'updated', 'last_message', 'id')
-        read_only_fields = ('last_message', )
 
-
-class ThreadListSerializer(serializers.ModelSerializer):
-    """For Serializing Threads"""
-    last_message = serializers.SerializerMethodField()
-
-    def get_last_message(self, obj):
-        message = obj.messages.last()
-        if message:
-            return message.text
-
-    class Meta:
-        model = Thread
-        fields = ('participants', 'name', 'created', 'updated', 'last_message')
-
-
-class MessageCreateSerializer(serializers.ModelSerializer):
-    """For Serializing Messages"""
-
-    sender = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
-    text = serializers.CharField(max_length=500)
-    thread = serializers.PrimaryKeyRelatedField(queryset=Thread.objects.all())
-    is_read = serializers.BooleanField(default=False)
-
-    def create(self, validated_data):
-        message = Message.objects.create(**validated_data)
-        return message
-
-    class Meta:
-        model = Message
-        fields = '__all__'
-
-
-class MessageDetailSerializer(serializers.ModelSerializer):
-    """For Serializing Messages"""
-
+class MessageSerializer(serializers.ModelSerializer):
+    """Serializer for creating and displaying messages."""
     class Meta:
         model = Message
         fields = '__all__'
 
 
 class MessageCountSerializer(serializers.Serializer):
-
+    user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
     number_of_unread_messages = serializers.SerializerMethodField()
 
-    def get_number_of_unread_messages(self, obj):
-        return obj.count()
+    def get_number_of_unread_messages(self, obj: OrderedDict) -> int:
+        user = obj.get('user')
+        user_threads_ids = user.threads.values_list('id', flat=True)
+        return Message.objects.filter(
+            thread_id__in=user_threads_ids, is_read=False
+        ).exclude(sender=user).count()

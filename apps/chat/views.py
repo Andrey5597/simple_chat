@@ -1,88 +1,82 @@
+from typing import List, Optional
 
+from django.contrib.auth.models import User
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.views import APIView
-from rest_framework.pagination import LimitOffsetPagination
-
-from apps.chat.serializers import (MessageCountSerializer,
-                                   MessageCreateSerializer,
-                                   MessageDetailSerializer, ThreadSerializer)
 
 from .models import Message, Thread
+from .serializers import (MessageCountSerializer,
+                          MessageSerializer,
+                          ThreadSerializer)
 
 
 class ThreadListView(generics.ListCreateAPIView):
     serializer_class = ThreadSerializer
-    pagination_class = LimitOffsetPagination
 
     def get_queryset(self):
         queryset = Thread.objects.all()
-        if 'user_id' in self.request.query_params:
-            queryset = queryset.filter(participants__id=self.request.query_params['user_id'])
-        return queryset
+        filter_dict = {}
+        user_id = self.request.query_params.get('user_id')
+        if user_id:
+            filter_dict.update(participants__id=user_id)
+        return queryset.filter(**filter_dict)
 
     @staticmethod
-    def get_thread(participants):
-        threads = Thread.objects.filter(participants=participants[0]
-                                        ).filter(participants=participants[1])
-        if threads.exists():
-            return threads.last()
-        return None
+    def get_thread(participants: List[User]) -> Optional[Thread]:
+        if len(participants) == 2:
+            user_1, user_2 = participants
+            thread = Thread.objects.filter(
+                participants=user_1
+            ).filter(participants=user_2).last()
+            return thread if thread else None
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        thread = self.get_thread(serializer.validated_data['participants'])
-        if thread is not None:
-            return Response(ThreadSerializer(thread).data, status=status.HTTP_200_OK)
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class ThreadDetailView(generics.RetrieveDestroyAPIView):
     lookup_url_kwarg = 'thread_id'
     serializer_class = ThreadSerializer
     queryset = Thread.objects.all()
-    pagination_class = LimitOffsetPagination
 
 
 class ThreadMessageListView(generics.ListCreateAPIView):
-    serializer_class = MessageDetailSerializer
-    pagination_class = LimitOffsetPagination
+    serializer_class = MessageSerializer
 
     def get_queryset(self):
         return Message.objects.filter(thread=self.kwargs['thread_id'])
 
 
 class MessageDetailView(generics.CreateAPIView):
-    serializer_class = MessageCreateSerializer
+    serializer_class = MessageSerializer
 
 
 class MessageListView(generics.ListAPIView):
-    serializer_class = MessageDetailSerializer
+    serializer_class = MessageSerializer
     
     def get_queryset(self):
-        return Message.objects.filter(thread_id=self.kwargs['thread_id'])
+        return Message.objects.filter(thread_id=self.kwargs.get('thread_id'))
 
 
-class MessageReadView(APIView):
+class MessageReadView(generics.CreateAPIView):
     permission_classes = (IsAuthenticated,)
 
-    def post(self, request):
-        if 'messages' in request.data and isinstance(request.data['messages'], list):
-            Message.objects.filter(id__in=request.data['messages']).update(is_read=True)
+    def post(self, request, *args, **kwargs):
+        if 'messages' in request.data and isinstance(request.data, dict):
+            if isinstance(request.data.get('messages'), list):
+                Message.objects.filter(id__in=request.data['messages']).update(is_read=True)
             return Response(status=status.HTTP_200_OK)
         return Response({'messages': 'Invalid format.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
-class UnreadMessageView(APIView):
+class UnreadMessageView(generics.RetrieveAPIView):
+    serializer_class = MessageCountSerializer
 
-    def get(self, request):
-        user_threads_ids = self.request.user.threads.all().values_list('id', flat=True)
-        unread_messages = Message.objects.filter(thread_id__in=user_threads_ids,
-                                                 is_read=False).exclude(sender=self.request.user)
-        output_serializer = MessageCountSerializer(unread_messages)
-
-        return Response(output_serializer.data, status=status.HTTP_200_OK)
+    def get(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data={'user': request.user.id})
+        serializer.is_valid(raise_exception=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

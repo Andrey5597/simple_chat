@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User
 from django.db import models
+from django.utils.translation import ugettext_lazy as _
 
 
 class Thread(models.Model):
@@ -12,13 +13,15 @@ class Thread(models.Model):
         return self.name
 
     class Meta:
+        verbose_name = _('Thread')
+        verbose_name_plural = _('Threads')
         ordering = ('created',)
 
 
 class Message(models.Model):
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sender')
     text = models.CharField(max_length=500, verbose_name='text')
-    thread = models.ForeignKey(Thread, on_delete=models.CASCADE, related_name='messages')  # ToDo: add 's'
+    thread = models.ForeignKey(Thread, on_delete=models.CASCADE, related_name='messages')
     created = models.DateTimeField(verbose_name='created', auto_now_add=True)
     is_read = models.BooleanField(default=False)
 
@@ -27,4 +30,6 @@ class Message(models.Model):
 
     class Meta:
         ordering = ('created',)
+        verbose_name = _('Message')
+        verbose_name_plural = _('Messages')
 
